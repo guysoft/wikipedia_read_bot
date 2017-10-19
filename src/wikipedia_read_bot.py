@@ -84,6 +84,10 @@ def get_articles(search):
         wikipedia.summary(search)
     except wikipedia.exceptions.DisambiguationError as e:
         return e.options
+    except wikipedia.exceptions.PageError:
+        return []
+    except ValueError:
+        return []
     return [search]
 
 
@@ -125,19 +129,43 @@ class Bot:
 
     def get_article_results(self, bot, update, chat_data):
         keyboard = []
+        suggestion = None
+
         search = update.message.text.strip()
         results = get_articles(search)
 
         chat_data["results"] = results
 
+        # We found just what we were looking for!
+        if len(results) == 1:
+            return self.get_article(bot, update, chat_data)
+
+        # We found nothing, try looking for suggestions
+        if len(results) == 0:
+            suggestion = wikipedia.suggest(search)
+            results = get_articles(suggestion)
+            chat_data["results"] = results
+
+            # Ok, no article, no suggestion
+            if len(results) == 0:
+                reply = "No article found"
+                update.message.reply_text(reply)
+                return ConversationHandler.END
+
         for result in results:
             keyboard.append([InlineKeyboardButton(result)])
 
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-        update.message.reply_text('Please select one of the results, or /cancel to cancel:', reply_markup=reply_markup)
+        reply = ""
+
+        if suggestion is not None:
+            reply += 'Did you mean "' + suggestion + '"?\n'
+
+        reply += 'Please select one of the results, or /cancel to cancel:'
+
+        update.message.reply_text(reply, reply_markup=reply_markup)
         return self.ARTICLES_ANSWER
         return ConversationHandler.END
-
 
     def get_article(self, bot, update, chat_data):
         article = update.message.text
