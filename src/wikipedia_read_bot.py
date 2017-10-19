@@ -62,7 +62,6 @@ def build_callback(data):
     return return_value
 
 
-
 def get_job_id(job):
     try:
         return job.comment.split(" ")[1]
@@ -87,6 +86,7 @@ def get_articles(search):
         return e.options
     return [search]
 
+
 class Bot:
     def __init__(self, token):
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -100,12 +100,12 @@ class Bot:
 
         # Add conversation handler with the states ALARM_TYPE, DAILY, WEEKDAY, HOUR
         set_article_handler = ConversationHandler(
-            entry_points=[RegexHandler('^(.*)$', self.get_article_results, pass_chat_data=True)],
+            entry_points=[RegexHandler('[^!(\/help)](.*)$', self.get_article_results, pass_chat_data=True)],
             states={
 
                 self.ARTICLES_ANSWER: [RegexHandler('^(.*)$', self.get_article, pass_chat_data=True)]
             },
-            fallbacks=[CommandHandler('cancel', self.cancel)]
+            fallbacks=[]
         )
         self.dispatcher.add_handler(set_article_handler)
 
@@ -119,40 +119,46 @@ class Bot:
         return
 
     def start(self, bot, update):
-        bot.send_message(chat_id=update.message.chat_id, text="I'm a wikipedia, send me an article you want to search for, please type /help for info")
+        bot.send_message(chat_id=update.message.chat_id, text="I'm a Wikipedia bot, send me an article you want to"
+                                                              " search for, please type /help for info")
         return
 
     def get_article_results(self, bot, update, chat_data):
         keyboard = []
-        reply = handle_cancel(update)
-        if reply is None:
-            search = update.message.text.strip()
-            results = get_articles(search)
+        search = update.message.text.strip()
+        results = get_articles(search)
 
-            chat_data["results"] = results
+        chat_data["results"] = results
 
-            for result in results:
-                keyboard.append([InlineKeyboardButton(result)])
+        for result in results:
+            keyboard.append([InlineKeyboardButton(result)])
 
-            reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-            update.message.reply_text('Please select one of the results, or /cancel to cancel:', reply_markup=reply_markup)
-            return self.ARTICLES_ANSWER
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+        update.message.reply_text('Please select one of the results, or /cancel to cancel:', reply_markup=reply_markup)
+        return self.ARTICLES_ANSWER
+        return ConversationHandler.END
 
 
     def get_article(self, bot, update, chat_data):
         article = update.message.text
-        if article in chat_data["results"]:
-            page = wikipedia.page(article)
-            bot.send_message(chat_id=update.message.chat_id, text=page.summary,
-                             parse_mode=ParseMode.HTML)
 
+        reply = handle_cancel(update)
+        if reply is None:
+
+            if article in chat_data["results"]:
+                page = wikipedia.page(article)
+                bot.send_message(chat_id=update.message.chat_id, text=page.summary,
+                                 parse_mode=ParseMode.HTML)
+
+            else:
+                update.message.reply_text("Article not in list")
         else:
-            update.message.reply_text("Article not in list")
+            return ConversationHandler.END
         return ConversationHandler.END
     
     def cancel(self, bot, update):
-        bot.send_message(chat_id=update.message.chat_id, text="Perhaps another time")
-        return
+        bot.send_message(chat_id=update.message.chat_id, text="Perhaps another timefff")
+        return ConversationHandler.END
 
     def error_callback(self, bot, update, error):
         try:
