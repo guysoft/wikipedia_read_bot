@@ -148,7 +148,8 @@ class Bot:
 
             # Ok, no article, no suggestion
             if len(results) == 0:
-                reply = "No article found"
+                icon = emojize(" :no_entry: ", use_aliases=True)
+                reply = icon + "No article found"
                 update.message.reply_text(reply)
                 return ConversationHandler.END
 
@@ -159,7 +160,8 @@ class Bot:
         reply = ""
 
         if suggestion is not None:
-            reply += 'Did you mean "' + suggestion + '"?\n'
+            icon = emojize("  :question: ", use_aliases=True)
+            reply += icon + 'Did you mean "' + suggestion + '"?\n'
 
         reply += 'Please select one of the results, or /cancel to cancel:'
 
